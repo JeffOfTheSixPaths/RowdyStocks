@@ -10,6 +10,7 @@ from tensorflow.keras.layers import Input, Dense, concatenate, Flatten, Attentio
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import Model
 import yfinance as yf
+from sklearn.preprocessing import StandardScaler
 
 # %%
 def s(x,A,b1,phi1,c, b2,phi2):
@@ -51,13 +52,17 @@ def get_data(ticker:str):
 
     msft = msft['Open']
     smoothing_factor = 7
-    for i in range(6, msft.shape[0], 1):
-        msft[i] = sum(msft[i-smoothing_factor:i].to_list())/smoothing_factor
+    for i in range(msft.shape[0] - smoothing_factor + 1):
+        a= sum(msft[i:i + smoothing_factor].to_list())/smoothing_factor
+        #print(msft[i])
+        msft[i] = a
 
     global prices
     global up_down
     for i in range(msft.shape[0] - num_hours - 1):
         prices.append(msft.iloc[i:i+num_hours].to_list())
+        #print(msft.iloc[i:i+num_hours].to_list())
+        #print(prices)
         up_down.append(msft.iloc[i+num_hours])#> msft.iloc[i+num_hours - 1])
     #up_down = [1  if i == np.True_ else 0 for i in up_down]
 
@@ -65,6 +70,8 @@ companies = ['msft', 'aapl', 'intc', 'nvda', 'amd', 'GOOG', "META"]
 for c in companies:
     get_data(c)
 num_ones = 0
+
+print(prices[523])
 for i in up_down:
     if i:
         num_ones += 1
@@ -76,27 +83,33 @@ def fft_mapping(iprices: list) -> list:
     return np.array([a,b])
 prices = list(prices)
 
-# plt.figure(figsize=(9, 9))
-# plt.subplots_adjust(wspace=0.5, hspace=0.5)
-# plt.subplot(311)
-# plt.title("Data")
-# plt.ylabel("Amplitude")
-# plt.plot(prices[0])
-# plt.subplot(312)
-# plt.title("Frequency and Amplitude")
-# plt.ylabel("Amplitude")
-# plt.xlabel("Frequency")
+stock_scaler = StandardScaler()
+
+prices_scaled = stock_scaler.fit(prices)
+
+#prices = prices_scaled.transform(prices)
+
+plt.figure(figsize=(9, 9))
+plt.subplots_adjust(wspace=0.5, hspace=0.5)
+plt.subplot(311)
+plt.title("Data")
+plt.ylabel("Amplitude")
+plt.plot(prices[0])
+plt.subplot(312)
+plt.title("Frequency and Amplitude")
+plt.ylabel("Amplitude")
+plt.xlabel("Frequency")
 
 fftprices = np.array(list(map(fft_mapping, prices)))
 a = fftprices[0][0]
 b = fftprices[0][1]
-# plt.plot(np.sqrt(a**2+b**2))
-# plt.subplot(313)
-# plt.title("Phase")
-# plt.xlabel("Frequency")
-# plt.ylabel("Phase")
-# plt.plot(np.arctan2(b,a))
-# plt.show()
+plt.plot(np.sqrt(a**2+b**2))
+plt.subplot(313)
+plt.title("Phase")
+plt.xlabel("Frequency")
+plt.ylabel("Phase")
+plt.plot(np.arctan2(b,a))
+plt.show()
 
 input1 = Input(shape=(2,num_hours), name="Input")
 dense1 = Dense(64, activation="relu")(input1)
