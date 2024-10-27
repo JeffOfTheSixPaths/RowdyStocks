@@ -112,13 +112,13 @@ dense1 = Dense(64, activation="relu", kernel_regularizer=L2(0.5))(dense1)
 attention_output = Attention()([dense1,dense1])
 flatten = Flatten()(attention_output)
 
-input2 = Input(shape=(num_hours, 1))
-l1 = tf.keras.layers.LSTM(128, return_sequences = True, activation = 'relu')(input2)
-a = Attention()([l1,l1])
-flatten2 = Flatten()(a)
-flatten3 = tf.keras.layers.Concatenate()([flatten, flatten2])
-output = Dense(1, activation="relu")(flatten3)
-model = Model(inputs=[input1, input2],outputs=output)
+#input2 = Input(shape=(num_hours, 1))
+#l1 = tf.keras.layers.LSTM(128, return_sequences = True, activation = 'relu')(input2)
+#a# = Attention()([l1,l1])
+#flatten2 = Flatten()(a)
+#flatten3 = tf.keras.layers.Concatenate()([flatten, flatten2])
+output = Dense(1, activation="relu")(flatten)
+model = Model(inputs=input1,outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=2e-4), loss='mse', metrics=['accuracy'])
 
 print(model.summary())
@@ -128,7 +128,7 @@ prices_reshaped = np.array(prices).reshape(-1, num_hours, 1)  # Adjust shape for
 up_down_array = np.array(up_down).astype(np.float32)  # Convert to numpy array
 
 history = model.fit(
-    [fftprices_reshaped, prices_reshaped],
+    fftprices_reshaped,
     up_down_array, 
     epochs=100, 
     batch_size = 64,
