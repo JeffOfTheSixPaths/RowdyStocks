@@ -49,11 +49,15 @@ def get_data(ticker:str):
     m = yf.Ticker(ticker)
     msft = m.history(period='2y', interval = '1h')
 
-    msft = msft['Open']
+    msft = msft['Open'].to_list()
+    smoothing_factor = 7
+    for i in range(6, len(msft), 1):
+        msft[i] = sum(msft[i-smoothing_factor:i])/smoothing_factor
+
     global prices
     global up_down
     for i in range(msft.shape[0] - num_hours - 1):
-        prices.append(msft.iloc[i:i+num_hours].to_list())
+        prices.append(msft.iloc[i:i+num_hours])
         up_down.append(msft.iloc[i+num_hours])#> msft.iloc[i+num_hours - 1])
     #up_down = [1  if i == np.True_ else 0 for i in up_down]
 
