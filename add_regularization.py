@@ -10,7 +10,7 @@ from tensorflow.keras.layers import Input, Dense, concatenate, Flatten, Attentio
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.models import Model
 import yfinance as yf
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, Normalizer
 
 # %%
 def s(x,A,b1,phi1,c, b2,phi2):
@@ -83,9 +83,9 @@ def fft_mapping(iprices: list) -> list:
     return np.array([a,b])
 prices = list(prices)
 
-stock_scaler = StandardScaler()
+stock_scaler = Normalizer()
 
-prices_scaled = stock_scaler.fit(prices)
+#prices_scaled = stock_scaler.fit(prices)
 
 #prices = prices_scaled.transform(prices)
 
@@ -103,6 +103,16 @@ plt.xlabel("Frequency")
 fftprices = np.array(list(map(fft_mapping, prices)))
 a = fftprices[0][0]
 b = fftprices[0][1]
+#print(a)
+
+scaled_a = stock_scaler.fit([a])
+scaled_b = stock_scaler.fit([b])
+
+fftprices = [[scaled_a.transform([fftprices[i][0]]),scaled_b.transform([fftprices[i][1]])] for i in range(len(fftprices))]
+scaled_label = stock_scaler.fit([up_down])
+m = max(up_down)
+up_down = [x/m for i in up_down]
+#up_down = scaled_label.transform([up_down])
 plt.plot(np.sqrt(a**2+b**2))
 plt.subplot(313)
 plt.title("Phase")
@@ -130,7 +140,12 @@ flatten = Flatten()(attention_output)
 #a# = Attention()([l1,l1])
 #flatten2 = Flatten()(a)
 #flatten3 = tf.keras.layers.Concatenate()([flatten, flatten2])
-output = Dense(1, activation="relu")(flatten)
+output = Dense(1, activation="sigmoid")(flatten)
+#output = tf.keras.layers.Lambda(lambda x: scaled_label.inverse_transform(x), output_shape = (1,))(output)
+
+
+
+
 model = Model(inputs=input1,outputs=output)
 model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=2e-4), loss='mse', metrics=['accuracy'])
 
@@ -140,6 +155,18 @@ fftprices_reshaped = np.array(fftprices).reshape(-1, 2, num_hours)  # Adjust sha
 prices_reshaped = np.array(prices).reshape(-1, num_hours, 1)  # Adjust shape for input2
 up_down_array = np.array(up_down).astype(np.float32)  # Convert to numpy array
 
+print(f"the max value is: {m}")
+
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+# Define checkpoint callback to save the best model based on val_loss
+checkpoint_callback = ModelCheckpoint(
+    filepath='./best_model.keras',  # Filepath to save the model
+    monitor='val_loss',        # Metric to monitor
+    save_best_only=True,       # Save only when val_loss improves
+    mode='min'                 # Minimum value of val_loss is considered "best"
+)
+
 history = model.fit(
     fftprices_reshaped,
     up_down_array, 
@@ -147,7 +174,8 @@ history = model.fit(
     batch_size = 64,
     shuffle = True,
     validation_split=0.1,  # Split some data for validation
-    verbose=1  # Verbose output for training
+    verbose=1,  # Verbose output for training
+    callbacks = [checkpoint_callback]
 )
 plt.plot(history.history['accuracy'], label='train_accuracy')
 plt.plot(history.history['val_accuracy'], label='val_accuracy')
